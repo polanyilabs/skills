@@ -1,3 +1,15 @@
+<p align="center">
+  <img src="assets/banner.svg" width="100%" alt="Polanyi Labs: AI shoppers that turn your store into training data for recommendation systems">
+</p>
+
+<p align="center">
+  <a href="https://agentskills.io/specification"><img src="https://img.shields.io/badge/agent%20skills-spec-C44B1E?labelColor=8B1A1A&style=flat-square" alt="Agent Skills"></a>
+  <img src="https://img.shields.io/badge/npx%20skills%20add-polanyilabs%2Fskills-C44B1E?labelColor=8B1A1A&style=flat-square" alt="npx skills add polanyilabs/skills">
+  <img src="https://img.shields.io/badge/license-Apache--2.0-C44B1E?labelColor=8B1A1A&style=flat-square" alt="Apache-2.0">
+  <img src="https://img.shields.io/badge/status-v0%20preview-E07030?labelColor=8B1A1A&style=flat-square" alt="Status: v0 preview">
+  <a href="https://polanyilabs.com"><img src="https://img.shields.io/badge/polanyilabs.com-F9F3EE?labelColor=8B1A1A&style=flat-square" alt="polanyilabs.com"></a>
+</p>
+
 # Polanyi Labs Skills
 
 Give your recommender behavioural data before real users arrive, from your AI coding agent: Claude Code, Codex,
@@ -9,6 +21,16 @@ recommender events. The skills tell your agent how to aim those shoppers at the 
 to merge the results into your own interaction logs.
 
 > **Status: v0, early preview.** Expect changes to the workflow and file formats.
+
+## Why
+
+<p align="center">
+  <img src="assets/cold_start.svg" width="100%" alt="A grid of shoppers by products. Three real shoppers have only a few interactions; synthetic shoppers are added row by row with many interactions.">
+</p>
+
+Recommenders learn from history: who viewed, compared and chose what. New stores, new products and new categories
+have almost none, so recommendations fall back to bestsellers. Polanyi adds sessions from synthetic shoppers aimed at
+the products your data is missing, flagged so you can always tell them apart from real customers.
 
 ## Installation
 

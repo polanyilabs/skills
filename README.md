@@ -38,8 +38,8 @@ the products your data is missing, flagged so you can always tell them apart fro
 npx skills add polanyilabs/skills
 ```
 
-[`skills`](https://github.com/vercel-labs/skills) detects the coding agents on your machine and copies each skill into
-the right place (for example `~/.claude/skills/` for Claude Code).
+[`skills`](https://github.com/vercel-labs/skills) detects the coding agents on your machine and installs each skill
+into your project for each of them (add `-g` to install for your user instead).
 
 **Manual install:** copy a folder from [`skills/`](./skills/) into your agent's skills directory.
 

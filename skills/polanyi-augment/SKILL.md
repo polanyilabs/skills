@@ -2,7 +2,7 @@
 name: polanyi-augment
 description: "Augment a recommender dataset with synthetic shopper sessions on the user's own store, aimed at products with little or no behavioural history. Reads their catalog and interaction logs, finds cold items, runs persona shoppers with Polanyi, and merges the events onto their own item IDs. Use when the user mentions 'augment my data', 'cold start', 'new products have no data', 'sparse interactions', 'synthetic users/shoppers', or 'warm up a recommender'."
 license: Apache-2.0
-compatibility: Requires the polanyi Python package (pip install polanyi), Python 3.11+, pandas and pyarrow, and a Polanyi or Browser Use API key in the environment.
+compatibility: Requires the polanyi Python package >= 0.4.2 (pip install polanyi), Python 3.11+, pandas and pyarrow, a Polanyi or Browser Use API key in the environment, and a store reachable from the public internet.
 metadata:
   version: "0.1.0"
 ---
@@ -17,6 +17,10 @@ the user's data is missing, then merges the result into the user's own interacti
 
 Do:
 - Ask for the store URL, the catalog file and its item-ID column, the interaction log and its columns, and the output path. Never guess them.
+- Check that the store URL is reachable from the public internet. Shoppers run in the cloud, so `localhost`, VPN-only
+  or password-protected staging sites fail. Ask about this before planning.
+- Before showing the plan, check that `POLANYI_API_KEY` or `BROWSER_USE_API_KEY` is set. Check the name only; never
+  print the value. If neither is set, tell the user how to set it and stop.
 - Show the plan and wait for an explicit "yes" before any run. Runs cost money and take several minutes per shopper.
 - Keep every synthetic row marked `is_synthetic=True` so it can be filtered out or down-weighted later.
 - Report what was dropped during matching, with counts.
@@ -35,16 +39,30 @@ Load the catalog and interactions with pandas. Count interactions per catalog it
 fewer than 5 (say which threshold you used). If the catalog has a category column, group cold items by category.
 If the user only asked which items are cold, stop here and answer.
 
+Also read the log's schema, so synthetic rows can be written in the same shape:
+- the user, item, event and time columns, and the type of each ID column (integer or text);
+- the event names the log uses (e.g. `view`, `add_to_cart`, `purchase`).
+
+Propose an event map from Polanyi's events to the log's names (for example `item_viewed=view,item_selected=add_to_cart`).
+Never map anything to a purchase or order event: shoppers never buy. If the log only has purchases, keep Polanyi's
+own event names and say so.
+
 ### 2. Present the plan and wait for approval
 
+Choose the number of shoppers from the data: 5 × the number of cold categories, at least 5 and at most 40 for a
+first run (one cold category: 5 shoppers; three: 15). Say how you chose it. Build the brief only from categories that are actually cold in this catalog.
+
 ```
-Store:         https://store.example
-Cold items:    23 of 410 (mostly: trail, outerwear)
-Shoppers:      40 personas, 1 session each
-Brief:         "Look for trail running shoes or waterproof outerwear for your own use or as a gift."
-Estimate:      approximate: 5-10 min and a few cents to a few tens of cents per shopper,
-               depending on the site and the model; check current pricing on your Polanyi account
-Output:        <path the user gave>/augmented.parquet
+Store:         <store URL, confirmed reachable from the internet>
+Cold items:    <n> of <total> (mostly: <cold categories>)
+Shoppers:      <N> personas, 1 session each (<why this number>)
+Brief:         "Look for <cold categories> for your own use or as a gift."
+Estimate:      approximate: 5-10 min and a few cents to a few tens of cents per shopper, depending on the site
+               and the model. Total: about <N / concurrency x 10> min and <N x per-shopper cost>. Check current
+               pricing on your Polanyi account.
+Output:        <path the user gave>/augmented.parquet (or .csv)
+Schema:        user_id <int|text>, item_id <int|text>, events mapped as <event map, or "kept as Polanyi names">,
+               time column <name, or none>
 Defaults:      synthetic rows flagged; unmatched events dropped and reported
 Approve?
 ```
@@ -52,9 +70,9 @@ Approve?
 ### 3. Run the shoppers
 
 ```bash
-polanyi-sim --site https://store.example \
-  --prompt "Look for trail running shoes or waterproof outerwear for your own use or as a gift." \
-  --batch 40 --concurrency 5 --output-dir runs/augment-2026-10-16
+polanyi-sim --site <store URL> \
+  --prompt "<the approved brief>" \
+  --batch <N> --concurrency 5 --output-dir runs/augment-<date>
 ```
 
 Each shopper writes `runs/.../<index>_<persona>/recsys_events.jsonl`. Watch for failed sessions in the summary and
@@ -63,15 +81,22 @@ report them; do not rerun silently.
 ### 4. Merge onto the user's IDs
 
 ```bash
-python scripts/merge_to_catalog.py --events runs/augment-2026-10-16 \
+python scripts/merge_to_catalog.py --events runs/augment-<date> \
   --catalog catalog.csv --id-col product_id --name-col title --price-col price --url-col url \
   --interactions interactions.parquet --item-col item_id --user-col user_id --event-col event \
+  --event-map item_viewed=view,item_selected=add_to_cart --time-col date \
   --out augmented.parquet
 ```
 
-The catalog and interactions can be CSV, Parquet or JSONL; pass them as they are. Pass `--name-col` and `--url-col`
-whenever the catalog has them: sites often show variant codes (one per colour)
-while catalogs list the product, so names and URLs carry most matches. See `references/id-matching.md`.
+- The catalog and interactions can be CSV, Parquet or JSONL; pass them as they are. IDs are read as text, so
+  zero-padded IDs keep their zeros. `--out` ends in `.parquet` or `.csv`.
+- With `--interactions`, `--item-col`, `--user-col` and `--event-col` are all required, using the log's own column
+  names. If the log has no event column, name one and it is created.
+- Synthetic rows follow the log's schema: integer user IDs become -1, -2, ... (the `syn_...` name is kept in
+  `synthetic_actor_id`), integer item IDs stay integers, `--event-map` renames events and drops the ones it doesn't
+  list, and `--time-col` gets each session's date. The real rows are never changed.
+- Pass `--name-col` and `--url-col` whenever the catalog has them. Matching tries the catalog ID first (also inside
+  the store's own IDs, such as `alexion-sweater-0874754`), then URLs, then names. See `references/id-matching.md`.
 
 ### 5. Report
 
@@ -81,7 +106,7 @@ Print a short table from the script's JSON output:
 |---|---|
 | Synthetic sessions | 40 |
 | Item events matched / dropped | 612 / 41 |
-| Cold items with new signal | 17 of 23 |
+| Cold items with new signal / with a selection | 17 of 23 / 6 |
 | Output | augmented.parquet (real rows + synthetic rows) |
 
 Then one line on what is still missing (cold items no shopper reached) and a reminder that lift should be measured

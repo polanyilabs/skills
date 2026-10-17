@@ -2,6 +2,9 @@
 
 Every row has `is_synthetic: true`, a synthetic `actor_id` (one per persona) and a `session_id`.
 
+> Versions: this table describes the next `polanyi` release. In `polanyi` 0.4.2, `item_selected` and
+> `checkout_started` are `very_strong`, and `session_started` does not record `max_price_usd` yet.
+
 | event_type | Meaning | signal_strength |
 |---|---|---|
 | `session_started` | Visit began; `payload.max_price_usd` is the most this persona would pay, set before browsing | none |

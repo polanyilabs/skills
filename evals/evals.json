@@ -1,0 +1,37 @@
+[
+  {
+    "name": "augment-cold-items",
+    "skills": ["polanyi-augment"],
+    "query": "Augment my dataset. The catalog is evals/files/catalog.csv and the interactions are evals/files/interactions.csv. The store is https://store.example.",
+    "files": ["evals/files/catalog.csv", "evals/files/interactions.csv"],
+    "expected_behavior": [
+      "Identifies the two trail shoes (TRL-2001, TRL-2002) as cold from the interactions, without starting a run",
+      "Asks for the output path instead of choosing one",
+      "Presents a plan with target items, number of shoppers, estimated time and cost, and waits for approval",
+      "Does not start polanyi-sim before the user approves",
+      "Writes a shopping brief that names the trail category and does not script how visits end"
+    ]
+  },
+  {
+    "name": "which-items-are-cold",
+    "skills": ["polanyi-augment"],
+    "query": "Which of my products have too little data for the recommender? Catalog: evals/files/catalog.csv, interactions: evals/files/interactions.csv",
+    "files": ["evals/files/catalog.csv", "evals/files/interactions.csv"],
+    "expected_behavior": [
+      "Answers from the data: TRL-2001 has 1 interaction and TRL-2002 has none",
+      "States the threshold it used (default fewer than 5 interactions)",
+      "Does not start a simulation or ask for an API key"
+    ]
+  },
+  {
+    "name": "low-match-rate",
+    "skills": ["polanyi-augment"],
+    "query": "I ran the merge and most synthetic events were dropped. Why, and what should I do?",
+    "files": [],
+    "expected_behavior": [
+      "Explains the matching order (site ID, URL, name) using references/id-matching.md",
+      "Suggests passing --name-col and --url-col, and checking that the catalog covers the categories that were browsed",
+      "Does not invent item IDs or tell the user to match on partial guesses"
+    ]
+  }
+]

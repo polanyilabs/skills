@@ -1,0 +1,7 @@
+product_id,title,category,price,url
+RUN-1001,Strider Road 4,running,165,https://store.example/products/strider-road-4
+RUN-1002,Tempo Glide 2,running,145,https://store.example/products/tempo-glide-2
+RUN-1003,Daily Pacer,running,104,https://store.example/products/daily-pacer
+RUN-1004,Easy Miles 14,running,75,https://store.example/products/easy-miles-14
+TRL-2001,Ridgeline WP,trail,175,https://store.example/products/ridgeline-wp
+TRL-2002,Switchback 10,trail,165,https://store.example/products/switchback-10

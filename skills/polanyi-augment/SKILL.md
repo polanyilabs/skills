@@ -86,7 +86,7 @@ report them; do not rerun silently.
 
 ```bash
 python scripts/merge_to_catalog.py --events runs/augment-<date> \
-  --catalog catalog.csv --id-col product_id --name-col title --price-col price --url-col url \
+  --catalog catalog.csv --id-col product_id --name-col title --price-col price --url-col url --type-col category \
   --interactions interactions.parquet --item-col item_id --user-col user_id --event-col event \
   --event-map item_viewed=view,item_selected=add_to_cart --time-col date \
   --out augmented.parquet
@@ -99,12 +99,23 @@ python scripts/merge_to_catalog.py --events runs/augment-<date> \
 - Synthetic rows follow the log's schema: integer user IDs become -1, -2, ... (the `syn_...` name is kept in
   `synthetic_actor_id`), integer item IDs stay integers, `--event-map` renames events and drops the ones it doesn't
   list, and `--time-col` gets each session's date. The real rows are never changed.
+- With `--interactions` and a run folder, the script also writes `runs/augment-<date>/coverage.json` for the report.
+  Pass `--type-col` when the catalog has a category column, so cold products are grouped by category.
 - Pass `--name-col` and `--url-col` whenever the catalog has them. Matching tries the catalog ID first (also inside
   the store's own IDs, such as `alexion-sweater-0874754`), then URLs, then names. See `references/id-matching.md`.
 
 ### 5. Report
 
-Print a short table from the script's JSON output:
+```bash
+python -m polanyi.report runs/augment-<date>
+```
+
+This rebuilds `runs/augment-<date>/report.html`, the page `polanyi-sim` wrote at the end of the run, and adds the
+coverage from step 4: cold products reached, those still without signal, and where to aim the next run. Give the user
+the path to open it in a browser. Everything stays on their machine.
+
+If the installed `polanyi` has no `polanyi.report` (0.4.2 and earlier), print a short table from the script's JSON
+output instead:
 
 | | |
 |---|---|

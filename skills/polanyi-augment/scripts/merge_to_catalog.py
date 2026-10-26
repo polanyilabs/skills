@@ -49,6 +49,8 @@ def load_events(paths: list[Path]) -> pd.DataFrame:
     if not frames:
         sys.exit("No events found under --events (no recsys_events.jsonl, or every session was empty or failed).")
     events = pd.concat(frames, ignore_index=True)
+    if "event_id" in events:  # the Python SDK also writes every session's events into one merged file
+        events = events.drop_duplicates(["session_id", "event_id"], ignore_index=True)
     for col in ("item_id", "payload", "session_id", "actor_id", "event_type", "signal_strength"):
         if col not in events:
             events[col] = None

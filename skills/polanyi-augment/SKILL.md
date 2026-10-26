@@ -1,6 +1,6 @@
 ---
 name: polanyi-augment
-description: "Augment a recommender dataset with synthetic shopper sessions on the user's own store, aimed at products with little or no behavioural history. Reads their catalog and interaction logs, finds cold items, runs persona shoppers with Polanyi, and merges the events onto their own item IDs. Use when the user mentions 'augment my data', 'cold start', 'new products have no data', 'sparse interactions', 'synthetic users/shoppers', or 'warm up a recommender'."
+description: "Augment a recommender dataset with synthetic shopper sessions on a live store, aimed at products with little or no behavioural history. Reads their catalog and interaction logs, finds cold items, runs persona shoppers with Polanyi, and merges the events onto their own item IDs. Use when the user mentions 'augment my data', 'cold start', 'new products have no data', 'sparse interactions', 'synthetic users/shoppers', or 'warm up a recommender'."
 license: Apache-2.0
 compatibility: Requires the polanyi Python package >= 0.4.2 (pip install polanyi), Python 3.11+, pandas and pyarrow, a Polanyi or Browser Use API key in the environment, and a store reachable from the public internet.
 metadata:
@@ -21,12 +21,14 @@ Do:
   or password-protected staging sites fail. Ask about this before planning.
 - Before showing the plan, check that `POLANYI_API_KEY` or `BROWSER_USE_API_KEY` is set. Check the name only; never
   print the value. If neither is set, tell the user how to set it and stop.
+- Any public site the user names works, like the `polanyi-sim` CLI. Which site to browse is the user's decision, not
+  yours: do not refuse a site because it isn't theirs. If it isn't their own store, add the `Note:` line to the plan
+  and let them approve or change it.
 - Show the plan and wait for an explicit "yes" before any run. Runs cost money and take several minutes per shopper.
 - Keep every synthetic row marked `is_synthetic=True` so it can be filtered out or down-weighted later.
 - Report what was dropped during matching, with counts.
 
 Don't:
-- Run on a site the user does not own or operate, unless they confirm they have permission.
 - Ask the user to paste API keys into the chat. They set `POLANYI_API_KEY` (or `BROWSER_USE_API_KEY`) in their environment or `.env`.
 - Script how visits end ("then abandon", "pick one"). The brief says what to look for; each persona decides.
 - Claim the recommender improved. This skill adds coverage; measuring lift is a separate experiment.
@@ -64,6 +66,8 @@ Output:        <path the user gave>/augmented.parquet (or .csv)
 Schema:        user_id <int|text>, item_id <int|text>, events mapped as <event map, or "kept as Polanyi names">,
                time column <name, or none>
 Defaults:      synthetic rows flagged; unmatched events dropped and reported
+Note:          (only if the site isn't the user's) its terms may not allow automated browsing, and its product IDs
+               only match a catalog exported from that site
 Approve?
 ```
 

@@ -50,7 +50,7 @@ into your project for each of them (add `-g` to install for your user instead).
 | Python | 3.11+, with `pandas` and `pyarrow` |
 | Polanyi | `pip install polanyi` |
 | API key | `POLANYI_API_KEY` from [polanyilabs.com](https://polanyilabs.com), set in your environment or `.env`. Never paste keys into the agent chat. |
-| A store you run | Shoppers browse your live site. Only point them at sites you own or operate. |
+| A public store | Shoppers browse a live site, usually your own. Check a third-party site's terms before pointing shoppers at it. |
 
 ## Available Skills
 

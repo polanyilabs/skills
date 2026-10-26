@@ -182,3 +182,17 @@ def test_synthetic_rows_follow_the_logs_schema(tmp_path, capsys):
     assert list(synth["customer"]) == [-1, -1] and list(synth["sku"]) == [1002, 1002]
     assert list(synth["action"]) == ["view", "cart"] and synth["synthetic_actor_id"].iloc[0] == "syn_a"
     assert str(synth["ts"].iloc[0].date()) == "2026-10-17"
+
+
+def test_sdk_output_folder_is_not_counted_twice(tmp_path, capsys):
+    # Client.simulate() writes each session's events and a merged copy at the top of the run folder.
+    events = [dict(_event("A-1", {}), event_id="evt_0001"), dict(_event("A-1", {}, "item_selected"), event_id="evt_0002")]
+    lines = "\n".join(json.dumps(e) for e in events)
+    (tmp_path / "run" / "0000_mary").mkdir(parents=True)
+    (tmp_path / "run" / "0000_mary" / "recsys_events.jsonl").write_text(lines)
+    (tmp_path / "run" / "recsys_events.jsonl").write_text(lines)
+    pd.DataFrame({"product_id": ["A-1"]}).to_csv(tmp_path / "c.csv", index=False)
+
+    main(["--events", str(tmp_path / "run"), "--catalog", str(tmp_path / "c.csv"), "--id-col", "product_id",
+          "--out", str(tmp_path / "o.parquet")])
+    assert json.loads(capsys.readouterr().out)["matched"] == 2

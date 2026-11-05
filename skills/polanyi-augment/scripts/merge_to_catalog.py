@@ -8,7 +8,8 @@ Matching order for each event that names an item:
   4. the product name matches exactly one catalog name (with --price-col, the closest price breaks ties)
   5. the same site ID was matched on another event in the same session
 Anything ambiguous or unmatched is dropped and counted, never guessed. IDs are always compared as strings,
-so zero-padded IDs keep their zeros.
+so zero-padded IDs keep their zeros. With --interactions and a run folder, the coverage of cold items is also
+written to <run folder>/coverage.json, which `python -m polanyi.report <run folder>` adds to the run report.
 
 Example:
   python merge_to_catalog.py --events runs/x --catalog items.csv --id-col product_id \
@@ -171,6 +172,37 @@ def fit_to_log(synth: pd.DataFrame, real: pd.DataFrame, args: argparse.Namespace
     return synth.rename(columns=renames)
 
 
+SIGNAL_LEVELS = {1: "seen", 2: "clicked or searched", 3: "chosen"}
+
+
+def write_coverage(run_dir: Path, catalog: pd.DataFrame, args: argparse.Namespace, synth: pd.DataFrame,
+                   cold: set[str], report: dict[str, object]) -> None:
+    """Cold items reached, by strongest signal, and those still without any, for the run report."""
+    level = synth["event_type"].eq("item_selected").map({True: 3, False: 1})
+    level = level.where(level == 3, synth["signal_strength"].isin(["medium", "strong", "very_strong"]).map({True: 2, False: 1}))
+    best = level.groupby(synth["item_id"]).max()
+    cat = catalog.assign(_id=catalog[args.id_col].map(as_id)).drop_duplicates("_id").set_index("_id")
+
+    def col(item: str, name: str | None) -> str | None:
+        return None if name is None or pd.isna(cat.at[item, name]) else str(cat.at[item, name])
+
+    reached = sorted(cold & set(best.index), key=lambda i: (-best[i], str(col(i, args.name_col) or i)))
+    dark = sorted(cold - set(best.index))
+    still: dict[str, int] = {}
+    for item in dark:
+        kind = col(item, args.type_col) or "products"
+        still[kind] = still.get(kind, 0) + 1
+    coverage = {
+        "schema_version": 1, "cold_below": args.cold_below, "cold_items": len(cold),
+        "chosen": int(report["cold_items_with_a_selection"]), "matched": report["matched"], "dropped": report["dropped"],
+        "reached": [{"item_id": i, "name": col(i, args.name_col) or i, "type": col(i, args.type_col),
+                     "signal": SIGNAL_LEVELS[int(best[i])]} for i in reached],
+        "still_without_signal": dict(sorted(still.items(), key=lambda kv: -kv[1])),
+    }
+    (run_dir / "coverage.json").write_text(json.dumps(coverage, indent=2))
+    report["coverage"] = str(run_dir / "coverage.json")
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--events", type=Path, nargs="+", required=True, help="Run folder(s) or recsys_events.jsonl file(s).")
@@ -179,6 +211,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--url-col", help="Catalog column with product page URLs or handles.")
     ap.add_argument("--name-col", help="Catalog column with product names (fallback match).")
     ap.add_argument("--price-col", help="Catalog column with prices (breaks ties between products with the same name).")
+    ap.add_argument("--type-col", help="Catalog column with the product type or category (groups cold items in coverage.json).")
     ap.add_argument("--interactions", type=Path, help="The user's interaction log (CSV, Parquet or JSONL).")
     ap.add_argument("--item-col", help="Item ID column in --interactions (required with it).")
     ap.add_argument("--user-col", help="User ID column in --interactions (required with it).")
@@ -246,6 +279,8 @@ def main(argv: list[str] | None = None) -> int:
         selected = set(synth.loc[synth["event_type"] == "item_selected", "item_id"]) & cold
         report.update(cold_items=len(cold), cold_items_with_new_signal=len(reached),
                       cold_items_with_a_selection=len(selected), cold_items_still_without_signal=len(cold - reached))
+        if args.events[0].is_dir():
+            write_coverage(args.events[0], catalog, args, synth, cold, report)
         out = pd.concat([real.assign(is_synthetic=False), fit_to_log(synth, real, args, report)], ignore_index=True)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)

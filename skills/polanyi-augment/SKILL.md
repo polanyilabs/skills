@@ -112,7 +112,12 @@ python -m polanyi.report runs/augment-<date>
 
 This rebuilds `runs/augment-<date>/report.html`, the page `polanyi-sim` wrote at the end of the run, and adds the
 coverage from step 4: cold products reached, those still without signal, and where to aim the next run. Give the user
-the path to open it in a browser. Everything stays on their machine.
+the path to open it in a browser.
+
+With a Polanyi API key, `polanyi-sim` (0.4.3 and later) also prints `Report link (anyone with it can open it): …`
+at the end of step 3. Give the user that link as well, and tell them two things: anyone with the link can open it,
+and it shows the shoppers but not the coverage from step 4. With only a Browser Use key there is no link and
+everything stays on their machine.
 
 If the installed `polanyi` has no `polanyi.report` (0.4.2 and earlier), print a short table from the script's JSON
 output instead:

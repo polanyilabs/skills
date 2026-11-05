@@ -196,3 +196,33 @@ def test_sdk_output_folder_is_not_counted_twice(tmp_path, capsys):
     main(["--events", str(tmp_path / "run"), "--catalog", str(tmp_path / "c.csv"), "--id-col", "product_id",
           "--out", str(tmp_path / "o.parquet")])
     assert json.loads(capsys.readouterr().out)["matched"] == 2
+
+
+def test_coverage_json_lists_cold_items_reached_and_still_dark(tmp_path, capsys):
+    run = tmp_path / "run"
+    run.mkdir()
+    events = [_event("TRL-1", {}), dict(_event("TRL-2", {}), signal_strength="medium"),
+              _event("TRL-2", {}, "item_selected"), _event("RUN-1", {})]
+    (run / "recsys_events.jsonl").write_text("\n".join(json.dumps(e) for e in events))
+    pd.DataFrame({"product_id": ["RUN-1", "TRL-1", "TRL-2", "TRL-3", "DRS-1"],
+                  "title": ["Road", "Ridge", "Switchback", "Summit", None],
+                  "kind": ["Road", "Trail", "Trail", "Trail", "Dress"]}).to_csv(tmp_path / "c.csv", index=False)
+    pd.DataFrame({"user_id": ["u1"] * 5, "item_id": ["RUN-1"] * 5, "event": ["view"] * 5}).to_csv(tmp_path / "r.csv", index=False)
+
+    main(["--events", str(run), "--catalog", str(tmp_path / "c.csv"), "--id-col", "product_id", "--name-col", "title",
+          "--type-col", "kind", "--interactions", str(tmp_path / "r.csv"), "--item-col", "item_id",
+          "--user-col", "user_id", "--event-col", "event", "--out", str(tmp_path / "o.parquet")])
+    report = json.loads(capsys.readouterr().out)
+    coverage = json.loads((run / "coverage.json").read_text())
+
+    assert report["coverage"] == str(run / "coverage.json")
+    assert coverage["cold_items"] == 4 and coverage["chosen"] == 1
+    assert [(r["name"], r["type"], r["signal"]) for r in coverage["reached"]] == [
+        ("Switchback", "Trail", "chosen"), ("Ridge", "Trail", "seen")]
+    assert coverage["still_without_signal"] == {"Dress": 1, "Trail": 1}
+
+
+def test_no_coverage_file_without_a_run_folder(tmp_path, capsys):
+    report = _run(tmp_path, capsys, [_event("A-1", {})], pd.DataFrame({"product_id": ["A-1", "B-2"]}),
+                  real=pd.DataFrame({"user_id": ["u1"], "item_id": ["A-1"], "event": ["view"]}))
+    assert "coverage" not in report and not (tmp_path / "coverage.json").exists()
